@@ -10,10 +10,10 @@ const http = require('http');
 // MongoDB 연결 후 GridFSBucket 생성
 let bucket;
 mongoose.connection.on('connected', () => {
-  console.log('[INFO] MongoDB connected');
-  bucket = new GridFSBucket(mongoose.connection.db, {
-    bucketName: 'profile_pics'
-  });
+    console.log('[INFO] MongoDB connected');
+    bucket = new GridFSBucket(mongoose.connection.db, {
+        bucketName: 'profile_pics'
+    });
 });
 
 exports.kakaoAuth = async (req, res) => {
@@ -22,16 +22,18 @@ exports.kakaoAuth = async (req, res) => {
     console.log(`[INFO] Received authorization code: ${code}`);
 
     try {
+        //토큰 발급 요청
         console.log('[INFO] Requesting access token from Kakao...');
-        const tokenResponse = await axios.post('https://kauth.kakao.com/oauth/token', null, {
+        const tokenResponse = await axios.post('https://kauth.kakao.com/oauth/token', null, {//token이 파라미터로 자동으로 들어옴
             params: {
                 grant_type: 'authorization_code',
-                client_id: process.env.KAKAO_REST_API_KEY, // Use REST API Key
-                redirect_uri: process.env.KAKAO_REDIRECT_URI,
+                client_id: process.env.KAKAO_REST_API_KEY, // 우리 앱이라는 증명?
+                redirect_uri: process.env.KAKAO_REDIRECT_URI,   //우리 앱 redirect
                 code: code
             }
         });
 
+        //토큰 발급 받음
         const accessToken = tokenResponse.data.access_token;
         console.log(`[INFO] Received access token: ${accessToken}`);
 
@@ -41,7 +43,7 @@ exports.kakaoAuth = async (req, res) => {
                 Authorization: `Bearer ${accessToken}`
             },
             params: {
-                property_keys: ["properties.nickname", "properties.profile_image"]
+                property_keys: ["properties.nickname", "properties.profile_image"]//한번 더 보내서 프로필이미지랑 닉네임 잗아옴
             }
         });
 
@@ -49,11 +51,11 @@ exports.kakaoAuth = async (req, res) => {
         console.log(`[INFO] Received Kakao profile: ${JSON.stringify(kakaoProfile)}`);
 
         console.log('[INFO] Checking if user exists in database...');
-        let user = await User.findOne({ kakao_id: kakaoProfile.id });
+        let user = await User.findOne({ kakao_id: kakaoProfile.id });//db에서 찾음
 
-        if (!user) {
+        if (!user) {//db에 저장
             console.log('[INFO] User not found, creating new user...');
-            
+
             // 프로필 이미지 다운로드 및 GridFS에 저장
             const profileImageUrl = kakaoProfile.properties.profile_image;
             const profilePicId = await saveProfileImageToGridFS(profileImageUrl);
@@ -70,7 +72,7 @@ exports.kakaoAuth = async (req, res) => {
         }
 
         console.log(`[INFO] Redirecting to frontend with user_id: ${user._id}`);
-        res.redirect(`myapp://oauth?user_id=${user._id}`);
+        res.redirect(`myapp://oauth?user_id=${user._id}`);//프런트로 redirect get을 보냄(는거같이)
     } catch (error) {
         console.error(`[ERROR] Failed to authenticate user: ${error.message}`);
         res.status(500).json({ error: 'Failed to authenticate user' });

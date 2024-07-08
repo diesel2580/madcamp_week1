@@ -15,7 +15,7 @@ conn.once('open', () => {
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-exports.uploadPhoto = [
+exports.uploadPhoto = [ //유저한테서 받은 userid, date, upload_time, "<file>"을 db에 저장하는 부분
   upload.single('photo'),
   async (req, res) => {
     const { user_id, date, upload_time_slot } = req.body;
@@ -32,7 +32,7 @@ exports.uploadPhoto = [
         content_type: req.file.mimetype
       });
 
-      writestream.write(req.file.buffer);
+      writestream.write(req.file.buffer); //gridfs에 파일 저장
       writestream.end();
 
       writestream.on('close', async (file) => {
@@ -51,9 +51,9 @@ exports.uploadPhoto = [
       res.status(500).json({ error: 'Failed to upload photo' });
     }
   }
-];
+];//photo image
 
-exports.getPhotos = async (req, res) => {
+exports.getPhotos = async (req, res) => { //특정 날짜의 사진 전체 불러오기: 클라이언트 화면에 표시될 수 있도록 하는 아이
   const { user_id, date } = req.query;
 
   try {

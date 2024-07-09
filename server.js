@@ -1,4 +1,4 @@
-require('dotenv').config();
+
 const express = require('express');
 const mongoose = require('mongoose');
 
@@ -7,10 +7,14 @@ const photoRoutes = require('./routes/photoRoutes');
 const userRoutes = require('./routes/userRoutes');
 const friendRoutes = require('./routes/friendRoutes'); // 새로운 라우트 추가
 
+require('dotenv').config();
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // URL-encoded 미들웨어 추가
+
 
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,

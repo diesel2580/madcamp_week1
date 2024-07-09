@@ -10,8 +10,7 @@ exports.getUserInfo = async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        const profilePicUrl = `${req.protocol}://${req.get('host')}/api/profile_pics/${user.profile_pic_id}`;
-        res.json({ name: user.name, profile_pic_id: user.profile_pic_id, profile_pic_url: profilePicUrl });
+        res.json({ name: user.name, profile_image_url: user.profile_image_url });
     } catch (error) {
         res.status(500).json({ error: 'Internal Server Error' });
     }

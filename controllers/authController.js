@@ -2,20 +2,6 @@ const axios = require('axios');
 const User = require('../models/User');
 const FriendList = require('../models/FriendList');
 const mongoose = require('mongoose');
-const { GridFSBucket } = require('mongodb');
-const fs = require('fs');
-const path = require('path');
-const https = require('https');
-const http = require('http');
-
-// MongoDB 연결 후 GridFSBucket 생성
-let bucket;
-mongoose.connection.on('connected', () => {
-    console.log('[INFO] MongoDB connected');
-    bucket = new GridFSBucket(mongoose.connection.db, {
-        bucketName: 'profile_pics'
-    });
-});
 
 exports.kakaoAuth = async (req, res) => {
     const { code } = req.query;
@@ -23,7 +9,7 @@ exports.kakaoAuth = async (req, res) => {
     console.log(`[INFO] Received authorization code: ${code}`);
 
     try {
-        //토큰 발급 요청
+        // 토큰 발급 요청
         console.log('[INFO] Requesting access token from Kakao...');
         const tokenResponse = await axios.post('https://kauth.kakao.com/oauth/token', null, {
             params: {
@@ -34,10 +20,11 @@ exports.kakaoAuth = async (req, res) => {
             }
         });
 
-        //토큰 발급 받음
+        // 토큰 발급 받음
         const accessToken = tokenResponse.data.access_token;
         console.log(`[INFO] Received access token: ${accessToken}`);
 
+        // 카카오 프로필 요청
         console.log('[INFO] Requesting user profile from Kakao...');
         const userResponse = await axios.get('https://kapi.kakao.com/v2/user/me', {
             headers: {
@@ -57,10 +44,6 @@ exports.kakaoAuth = async (req, res) => {
         if (!user) {
             console.log('[INFO] User not found, creating new user...');
 
-            // 프로필 이미지 다운로드 및 GridFS에 저장
-            const profileImageUrl = kakaoProfile.properties.profile_image;
-            const profilePicId = await saveProfileImageToGridFS(profileImageUrl);
-
             // 새로운 사용자와 연결된 빈 친구 목록 생성
             const friendList = new FriendList({
                 user_id: new mongoose.Types.ObjectId(),
@@ -71,8 +54,8 @@ exports.kakaoAuth = async (req, res) => {
             user = new User({
                 kakao_id: kakaoProfile.id,
                 name: kakaoProfile.properties.nickname,
-                profile_pic_id: profilePicId,
-                friend_list_id: friendList._id // 친구 목록 ID 연결
+                profile_image_url: kakaoProfile.properties.profile_image,  // 이미지 URL 저장
+                friend_list_id: friendList._id
             });
             await user.save();
 
@@ -92,33 +75,3 @@ exports.kakaoAuth = async (req, res) => {
         res.status(500).json({ error: 'Failed to authenticate user' });
     }
 };
-
-// 프로필 이미지를 다운로드하여 GridFS에 저장하는 함수
-async function saveProfileImageToGridFS(url) {
-    return new Promise((resolve, reject) => {
-        const protocol = url.startsWith('https') ? https : http;
-
-        protocol.get(url, (response) => {
-            const filename = path.basename(url);
-            const filePath = path.join('/tmp', filename);
-            const fileStream = fs.createWriteStream(filePath);
-
-            response.pipe(fileStream);
-
-            fileStream.on('finish', () => {
-                fileStream.close();
-
-                // GridFS에 파일 저장
-                const uploadStream = bucket.openUploadStream(filename);
-                const fileReadStream = fs.createReadStream(filePath);
-
-                fileReadStream.pipe(uploadStream)
-                    .on('error', (error) => reject(error))
-                    .on('finish', () => {
-                        fs.unlinkSync(filePath); // 임시 파일 삭제
-                        resolve(uploadStream.id);
-                    });
-            });
-        }).on('error', (error) => reject(error));
-    });
-}

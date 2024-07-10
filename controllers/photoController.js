@@ -182,3 +182,40 @@ exports.mergePhotos = async (req, res) => {
     res.status(500).json({ error: 'Failed to merge photos' });
   }
 };
+
+//photo delete
+exports.deletePhoto = async (req, res) => {
+  const { photo_id } = req.params;
+  console.log(`Received request to delete photo with id: ${photo_id}`);//사진 전달 확인
+
+  try {
+    const photo = await DayPhoto.findOne({ photo_id });
+
+    if (!photo) {
+      console.log('Photo not found'); // 사진 x
+      console.log(`Photo with id: ${photo_id} not found in DayPhoto collection`);//
+      return res.status(404).json({ error: 'Photo not found' });
+    }
+
+    // Delete the photo from GridFS
+    const gfs = new GridFSBucket(mongoose.connection.db, {
+      bucketName: 'uploads'
+    });
+
+    gfs.delete(new mongoose.Types.ObjectId(photo_id), async (err) => {
+      if (err) {
+        console.error(`Failed to delete photo with id: ${photo_id} from GridFS`, err);//gridfs delete 확인
+        return res.status(500).json({ error: 'Failed to delete photo from GridFS', details: err.message });
+      }
+
+      // Delete the photo record from the database
+      await DayPhoto.deleteOne({ photo_id });
+
+      res.json({ message: 'Photo deleted successfully' });
+      console.log(`Photo with id: ${photo_id} successfully deleted from GridFS`);//삭제 성공
+    });
+  } catch (error) {
+    console.error(`Error while deleting photo with id: ${photo_id}`, error);//삭제 오류
+    res.status(500).json({ error: 'Failed to delete photo', details: error.message });
+  }
+};
